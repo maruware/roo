@@ -2073,6 +2073,18 @@ where the expected result is
     end
   end
 
+  def test_merged_status
+    return unless EXCELX
+    xlsx  = Roo::Excelx.new(File.join(TESTDIR, "merged_ranges.xlsx"))
+    for row in 3..7 do
+      for col in 'a'..'b'
+        if row > 4 && row < 7 && col == 'a'
+          assert xlsx.raw_cell(col,row).merged?
+        end
+      end
+    end
+  end
+
   def test_open_stream
     return unless EXCELX
     file_contents = File.read File.join(TESTDIR, fixture_filename(:numbers1, :excelx)), encoding: 'BINARY'

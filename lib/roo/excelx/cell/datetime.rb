@@ -6,8 +6,8 @@ module Roo
       class DateTime < Cell::Base
         attr_reader :value, :formula, :format, :cell_value, :link, :coordinate
 
-        def initialize(value, formula, excelx_type, style, link, base_date, coordinate)
-          super(value, formula, excelx_type, style, link, coordinate)
+        def initialize(value, formula, excelx_type, style, link, base_date, coordinate, merged)
+          super(value, formula, excelx_type, style, link, coordinate, merged)
           @type = :datetime
           @format = excelx_type.last
           @value = link? ? Roo::Link.new(link, value) : create_datetime(base_date, value)

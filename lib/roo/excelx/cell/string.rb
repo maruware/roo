@@ -4,8 +4,8 @@ module Roo
       class String < Cell::Base
         attr_reader :value, :formula, :format, :cell_type, :cell_value, :link, :coordinate
 
-        def initialize(value, formula, style, link, coordinate)
-          super(value, formula, nil, style, link, coordinate)
+        def initialize(value, formula, style, link, coordinate, merged)
+          super(value, formula, nil, style, link, coordinate, merged)
           @type = @cell_type = :string
           @value = link? ? Roo::Link.new(link, value) : value
         end

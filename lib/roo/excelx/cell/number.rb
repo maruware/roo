@@ -4,7 +4,7 @@ module Roo
       class Number < Cell::Base
         attr_reader :value, :formula, :format, :cell_value, :link, :coordinate
 
-        def initialize(value, formula, excelx_type, style, link, coordinate)
+        def initialize(value, formula, excelx_type, style, link, coordinate, merged)
           super
           # FIXME: change @type to number. This will break brittle tests.
           # FIXME: Excelx_type is an array, but the first value isn't used.

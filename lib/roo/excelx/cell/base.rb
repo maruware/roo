@@ -33,7 +33,7 @@ module Roo
         #        deprecated.
         attr_writer :value
 
-        def initialize(value, formula, excelx_type, style, link, coordinate)
+        def initialize(value, formula, excelx_type, style, link, coordinate, merged)
           @link = !!link
           @cell_value = value
           @cell_type = excelx_type
@@ -42,6 +42,7 @@ module Roo
           @coordinate = coordinate
           @type = :base
           @value = link? ? Roo::Link.new(link, value) : value
+          @merged = merged
         end
 
         def type
@@ -60,6 +61,10 @@ module Roo
 
         def link?
           !!@link
+        end
+
+        def merged?
+          @merged
         end
 
         alias_method :formatted_value, :value

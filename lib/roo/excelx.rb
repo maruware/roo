@@ -155,6 +155,11 @@ module Roo
       safe_send(sheet_for(sheet).cells[key], :value)
     end
 
+    def raw_cell(row, col, sheet = nil)
+      key = normalize(row, col)
+      sheet_for(sheet).cells[key]
+    end
+
     def row(rownumber, sheet = nil)
       sheet_for(sheet).row(rownumber)
     end

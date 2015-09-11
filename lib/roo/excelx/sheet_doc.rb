@@ -12,6 +12,7 @@ module Roo
         @shared = shared
         @options = options
         @relationships = relationships
+        init_merged_cells()
       end
 
       def cells(relationships)
@@ -40,7 +41,8 @@ module Roo
         return [] unless row_xml
         row_xml.children.each do |cell_element|
           key = ::Roo::Utils.ref_to_key(cell_element['r'])
-          yield cell_from_xml(cell_element, hyperlinks(@relationships)[key])
+          merged = merged_key?(key)
+          yield cell_from_xml(cell_element, hyperlinks(@relationships)[key], merged)
         end
       end
 
@@ -76,9 +78,9 @@ module Roo
       #    # => <Excelx::Cell::String>
       #
       # Returns a type of <Excelx::Cell>.
-      def cell_from_xml(cell_xml, hyperlink)
+      def cell_from_xml(cell_xml, hyperlink, merged)
         coordinate = extract_coordinate(cell_xml['r'])
-        return Excelx::Cell::Empty.new(coordinate) if cell_xml.children.empty?
+        return Excelx::Cell::Empty.new(coordinate, merged) if cell_xml.children.empty?
 
         # NOTE: This is error prone, to_i will silently turn a nil into a 0.
         #       This works by coincidence because Format[0] is General.
@@ -86,24 +88,23 @@ module Roo
         format = styles.style_format(style)
         value_type = cell_value_type(cell_xml['t'], format)
         formula = nil
-
         cell_xml.children.each do |cell|
           case cell.name
           when 'is'
             cell.children.each do |inline_str|
               if inline_str.name == 't'
-                return Excelx::Cell.create_cell(:string, inline_str.content, formula, style, hyperlink, coordinate)
+                return Excelx::Cell.create_cell(:string, inline_str.content, formula, style, hyperlink, coordinate, merged)
               end
             end
           when 'f'
             formula = cell.content
           when 'v'
-            return create_cell_from_value(value_type, cell, formula, format, style, hyperlink, base_date, coordinate)
+            return create_cell_from_value(value_type, cell, formula, format, style, hyperlink, base_date, coordinate, merged)
           end
         end
       end
 
-      def create_cell_from_value(value_type, cell, formula, format, style, hyperlink, base_date, coordinate)
+      def create_cell_from_value(value_type, cell, formula, format, style, hyperlink, base_date, coordinate, merged)
         # NOTE: format.to_s can replace excelx_type as an argument for
         #       Cell::Time, Cell::DateTime, Cell::Date or Cell::Number, but
         #       it will break some brittle tests.
@@ -120,10 +121,10 @@ module Roo
         case value_type
         when :shared
           value = shared_strings[cell.content.to_i]
-          Excelx::Cell.create_cell(:string, value, formula, style, hyperlink, coordinate)
+          Excelx::Cell.create_cell(:string, value, formula, style, hyperlink, coordinate, merged)
         when :boolean, :string
           value = cell.content
-          Excelx::Cell.create_cell(value_type, value, formula, style, hyperlink, coordinate)
+          Excelx::Cell.create_cell(value_type, value, formula, style, hyperlink, coordinate, merged)
         when :time, :datetime
           cell_content = cell.content.to_f
           # NOTE: A date will be a whole number. A time will have be > 1. And
@@ -142,11 +143,11 @@ module Roo
                       else
                         :date
                       end
-          Excelx::Cell.create_cell(cell_type, cell.content, formula, excelx_type, style, hyperlink, base_date, coordinate)
+          Excelx::Cell.create_cell(cell_type, cell.content, formula, excelx_type, style, hyperlink, base_date, coordinate, merged)
         when :date
-          Excelx::Cell.create_cell(value_type, cell.content, formula, excelx_type, style, hyperlink, base_date, coordinate)
+          Excelx::Cell.create_cell(value_type, cell.content, formula, excelx_type, style, hyperlink, base_date, coordinate, merged)
         else
-          Excelx::Cell.create_cell(:number, cell.content, formula, excelx_type, style, hyperlink, coordinate)
+          Excelx::Cell.create_cell(:number, cell.content, formula, excelx_type, style, hyperlink, coordinate, merged)
         end
       end
 
@@ -166,32 +167,46 @@ module Roo
       end
 
       def expand_merged_ranges(cells)
+        # Duplicate value into all cells in merged range
+        @merged_dst_to_src.each do |dst, src|
+          cells[dst] = cells[src]
+        end
+      end
+
+      def init_merged_cells()
         # Extract merged ranges from xml
-        merges = {}
+        @merged_dst_to_src = {}
         doc.xpath('/worksheet/mergeCells/mergeCell').each do |mergecell_xml|
           tl, br = mergecell_xml['ref'].split(/:/).map { |ref| ::Roo::Utils.ref_to_key(ref) }
           for row in tl[0]..br[0] do
             for col in tl[1]..br[1] do
               next if row == tl[0] && col == tl[1]
-              merges[[row, col]] = tl
+              @merged_dst_to_src[[row, col]] = tl
             end
           end
         end
-        # Duplicate value into all cells in merged range
-        merges.each do |dst, src|
-          cells[dst] = cells[src]
-        end
+        @merged_src_to_dst = @merged_dst_to_src.invert
       end
 
       def extract_cells(relationships)
         extracted_cells = Hash[doc.xpath('/worksheet/sheetData/row/c').map do |cell_xml|
           key = ::Roo::Utils.ref_to_key(cell_xml['r'])
-          [key, cell_from_xml(cell_xml, hyperlinks(relationships)[key])]
+          merged = merged_key?(key)
+
+          [key, cell_from_xml(cell_xml, hyperlinks(relationships)[key], merged)]
         end]
 
         expand_merged_ranges(extracted_cells) if @options[:expand_merged_ranges]
 
         extracted_cells
+      end
+
+      def merged_key?(key)
+        merged = @merged_dst_to_src.has_key? key
+        unless merged
+          merged = @merged_src_to_dst.has_key? key
+        end
+        merged
       end
 
       def extract_dimensions

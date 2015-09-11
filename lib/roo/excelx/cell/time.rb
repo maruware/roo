@@ -6,7 +6,7 @@ module Roo
       class Time < Roo::Excelx::Cell::DateTime
         attr_reader :value, :formula, :format, :cell_value, :link, :coordinate
 
-        def initialize(value, formula, excelx_type, style, link, base_date, coordinate)
+        def initialize(value, formula, excelx_type, style, link, base_date, coordinate, merged)
           # NOTE: Pass all arguments to DateTime super class.
           super
           @type = :time
