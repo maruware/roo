@@ -7,7 +7,6 @@ require 'roo/excelx/cell/empty'
 require 'roo/excelx/cell/number'
 require 'roo/excelx/cell/string'
 require 'roo/excelx/cell/time'
-require 'roo/excelx/cell/merged'
 
 module Roo
   class Excelx
